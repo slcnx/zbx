@@ -1,0 +1,156 @@
+#!/usr/bin/env python
+# -*- coding=utf-8 -*-
+
+import os,sys
+import re,time
+import httplib
+
+class net_flow(object):
+  "get the netcards flow usage rate"
+
+  def __init__(self, derection):
+    
+    self.derection = derection
+    self.conf_num = 1000
+
+  def flow_conf(self):
+    "the configuration should be num£¬default flow unit M"
+
+    if not os.path.exists('/usr/local/zabbix/script/conf/flow_config'):
+        print '/usr/local/zabbix/script/conf/flow_config file not exist, please check it !'
+        print 'flow_config file form: < num >'
+        time.sleep(3)
+        os._exit(0)
+
+    file = open("/usr/local/zabbix/script/conf/flow_config","r")
+    lines = file.readlines()
+    for line in lines:
+        tmp_str = ''.join(re.findall('<.*>',line))
+        if tmp_str:
+            self.conf_num = int(tmp_str[1:-1])
+            break
+    file.close()
+
+
+  def get_flow(self):
+
+    "get het networkcards Receive and Transmit datas !"
+    netcards = []
+
+    f = open("/proc/net/dev")  
+    lines = f.readlines()  
+    f.close()
+
+    for line in lines[2:]:
+      line = line.strip()
+      if line[:3] == 'lo:':
+        continue
+
+      intf = {}
+
+      con = line.split(':')
+
+      con_nu = con[1].split()  
+      
+      if con_nu[0] == '0' and con_nu[8] == '0':
+        
+        continue
+
+      intf['interface'] = con[0].strip(":").strip(" ") 
+      intf['ReceiveBytes_a'] = int(con_nu[0])
+      intf['TransmitBytes_a'] = int(con_nu[8])
+
+      netcards.append(intf)
+
+    return netcards
+
+  def net_stat(self):
+    "Through the time difference,get all the netcards datas."
+
+    data = {}
+    All_ReceiveBytes = 0
+    All_TransmitBytes = 0
+
+    first_nums = self.get_flow()
+    time.sleep(2)
+    second_nums = self.get_flow()
+
+    i = 0
+    for first_num in first_nums:
+
+      
+      interface = first_num['interface']
+      ReceiveBytes = float(second_nums[i]['ReceiveBytes_a'] - first_num['ReceiveBytes_a'])
+      TransmitBytes = float(second_nums[i]['TransmitBytes_a'] - first_num['TransmitBytes_a'])
+      i = i + 1
+
+      All_ReceiveBytes = All_ReceiveBytes + ReceiveBytes
+      All_TransmitBytes = All_TransmitBytes + TransmitBytes
+
+
+
+    if self.derection == "R":
+      r_data = All_ReceiveBytes*8/1024/1024/2/self.conf_num
+      data['R'] = round(float(r_data),2)
+    if self.derection == "T":
+      t_data = All_TransmitBytes*8/1024/1024/2/self.conf_num
+      data['T'] = round(float(t_data),2)
+
+    return data
+
+
+  def flow_post(self,host='127.0.0.1',status=''):
+    httpClient = None
+    try:
+        #params = urllib.urlencode({'name': 'tom', 'age': 22})
+        headers = {"Content-type": "application/x-www-form-urlencoded"
+                        , "Accept": "text/plain",  "User-Agent": "Mozilla/5.0 (Linux; X11)"}
+
+        httpClient = httplib.HTTPConnection( host, 8083, timeout=3)
+        if status:
+          httpClient.request("POST", "/alarm",  headers=headers)
+        else:
+          httpClient.request("POST", "/alarm_cancle",  headers=headers)
+     
+        response = httpClient.getresponse()
+
+    except Exception, e:
+        pass
+    finally:
+        if httpClient:
+            httpClient.close()
+
+
+  def get_host(self):
+
+    localIP_info = os.popen('ifconfig | grep "inet addr" | grep -v "127.0.0.1" | head -1').read()
+    localIP = localIP_info.split()[1][5:]
+    return localIP
+
+
+def main(derection):
+  flow = net_flow(derection)
+  flow.flow_conf()
+  flow_data = flow.net_stat()
+  #do not consider the muticards
+
+  flow_load = flow_data[derection]
+  print flow_load
+
+  # call function to limit new user in
+  if flow_load > 0.9:
+    flow.flow_post(status=1)
+  else:
+    flow.flow_post()
+
+ 
+
+
+
+if __name__ == '__main__':
+
+  if len(sys.argv) > 1:
+    load = main(sys.argv[1])
+  else:
+    print 'please give the  derection parameter R or T !'
+

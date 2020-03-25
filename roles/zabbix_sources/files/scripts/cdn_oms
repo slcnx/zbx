@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+import warnings
+warnings.filterwarnings("ignore")
+import os,sys
+from datetime import datetime
+
+def get_num(http_or_rudp):
+	sql = "select %s from oms_client_connection where insertTime=(select max(insertTime) from oms_client_connection);" % http_or_rudp
+	num = os.popen("mysql -uroot -pStar.123Mysql -D cdn_log_system -e '%s'" % sql).read()
+	if num:
+		num = num.split('\n')[1]
+		return int(num)
+
+def timediff():
+	now_time = datetime.now()
+	time_sql = "select max(insertTime) from oms_client_connection"
+	insertTime = os.popen("mysql -uroot -pStar.123Mysql -D cdn_log_system -e '%s';" % time_sql).read()
+	#print insertTime.split('\n')[1]
+	max_time = insertTime.split('\n')[1]
+	delta = now_time - datetime.strptime(max_time,'%Y-%m-%d %H:%M:%S')
+	return delta.days * 24 * 3600 + delta.seconds
+
+if __name__ == "__main__":
+
+	params = ["http_client_num","http_connect_num","rudp_client_num","rudp_connect_num","http_relay_num","rudp_relay_num","all_session","all_client"]
+	if len(sys.argv) == 2 and sys.argv[1] in params:
+
+		if timediff() > 900:
+			print "the data is old"
+			exit(1)
+
+		give_para = sys.argv[1]
+		if give_para in params[:6]:
+			print get_num(give_para)
+		if give_para == "all_session":
+			print get_num("http_connect_num") + get_num("rudp_connect_num")
+		if give_para == "all_client" :
+			print get_num("http_client_num") + get_num("rudp_client_num")
+	else:
+		print "please input a correct parameter"
+		print "Usage:"
+		print "option:%s" %params
+
+

@@ -1,0 +1,44 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+import warnings
+warnings.filterwarnings("ignore")
+import os,sys
+import time,datetime
+
+def string2time( s ):
+
+    d=datetime.datetime.strptime(s,"%Y-%m-%d %H:%M:%S")
+
+    return time.mktime(d.timetuple())
+
+
+def result(ziduan,tiaojian):
+    sql = "select %s from live_info where insertTime = (select max(insertTime) from live_info) and channel_name= '%s' ;" % (ziduan,tiaojian)
+    
+    channel_info = os.popen('mysql -uroot -pStar.123Mysql -D cdn_log_system -e "%s"' % sql ).read()
+    if  channel_info:
+        print channel_info.split('\n')[1]
+    else:
+        print 'can`t get channel datas'
+
+
+    
+now_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime( ) ) 
+
+
+msql = "select insertTime from live_info where insertTime = (select max(insertTime) from live_info) limit 1;" 
+
+time_info = os.popen('mysql -uroot -pStar.123Mysql -D cdn_log_system -e "%s"' % msql ).read()
+
+if time_info:
+
+    sele_time = ''.join(time_info.split('\n')[1])
+
+    if string2time(now_time) - string2time(sele_time) > 900:
+        print -10
+    else:
+        result(sys.argv[1],sys.argv[2])
+else:
+
+    print "the database cdn_log_system no data !"
+

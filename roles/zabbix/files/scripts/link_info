@@ -1,0 +1,25 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+import warnings
+warnings.filterwarnings("ignore")
+import os,sys
+
+def result(channel):
+    sql = "select cpcontentid,currenturl,remark,streamstatus from channel_application where cpcontentid= '%s' order by id desc limit 1;" % (channel)
+    
+    link_info = os.popen('mysql -uroot -pStar.123Mysql -D cms -e "%s"' % sql ).read() 
+    
+
+    if link_info:
+
+        print link_info.split('\n')[1]
+    else:
+
+        print "the database cms no data !"
+
+if __name__ == '__main__':
+
+    if len(sys.argv) > 1:
+        result(sys.argv[1])
+    else:
+        print 'give the parameter channel name'

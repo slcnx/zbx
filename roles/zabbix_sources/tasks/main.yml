@@ -1,0 +1,116 @@
+---
+# tasks file for zabbix
+- name: install require package 
+  apt: name={{ item }}
+  with_items:
+  - software-properties-common
+  - gcc
+  - make
+  - fping
+  - libsnmp-dev
+  - curl
+  - libssh2-1-dev
+  - libopenipmi-dev
+  - python-mysqldb
+  when: ansible_os_family == 'Debian'
+
+- name: update mirrors list /etc/apt/sources.list
+  copy: src=sources.list dest=/etc/apt/sources.list
+  when: ansible_os_family == 'Debian'
+
+- name: install require package
+  yum: name={{ item }}
+  with_items:
+  - make
+  - gcc
+  - fping
+  - curl
+  - curl-devel
+  - net-snmp
+  - net-snmp-devel
+  - libssh2-devel
+  - OpenIPMI-devel
+  - mbedtls-devel
+  - MySQL-python
+  when: ansible_os_family == 'RedHat'
+
+
+- name: install zabbix group
+  group: name=zabbix 
+- name: install zabbix user
+  user: name=zabbix group=zabbix shell=/sbin/nologin
+
+- name: unarchive zabbix-3.0.2.tar.gz
+  unarchive: src=zabbix-3.0.2.tar.gz dest=/usr/local/src/zabbix/
+
+- name: configure zabbix agent and proxy
+  shell: chdir=/usr/local/src/zabbix/ free_form="./configure --prefix=/usr/local/zabbix --enable-agent --enable-proxy --with-mysql --with-net-snmp --with-ssh2 --with-openipmi"
+- name: make zabbix agent and proxy
+  shell: chdir=/usr/local/src/zabbix/ free_form="make"
+- name: make install zabbix agent and proxy
+  shell: chdir=/usr/local/src/zabbix/ free_form="make install"
+
+- name: start script
+  copy: remote_src=yes src=/usr/local/src/zabbix/misc/init.d/fedora/core/zabbix_agentd dest=/etc/init.d/zabbix_agentd mode=755
+  when: ansible_os_family == 'RedHat'
+
+- name: update script
+  shell: sed -i "s#BASEDIR=/usr/local#BASEDIR=/usr/local/zabbix#g" /etc/init.d/zabbix_agentd
+  when: ansible_os_family == 'RedHat'
+  
+- name: update script
+  shell: sed -i "s#DAEMON=/usr/local/sbin/${NAME}#DAEMON=/usr/local/zabbix/sbin/${NAME}#g" /etc/init.d/zabbix_agentd
+  when: ansible_os_family == 'Debian'
+
+- name: conf zabbix agent
+  template: src=zabbix_agentd.conf.j2 dest=/usr/local/zabbix/etc/zabbix_agentd.conf
+  tags: conf zabbix agent
+  notify:
+  - restart agent
+  when: ansible_os_family == 'Debian' and  servertype == 'agent'
+
+
+- name: install zabbix script
+  copy: src=scripts/ dest=/usr/local/zabbix/scripts/ mode=755  owner=root group=root
+  when: servertype == 'agent'
+
+- name: start zabbix agent
+  service: name=zabbix-agent state=started enabled=true
+  when: servertype == 'agent'
+
+- name: conf zabbix proxy
+  template: src=zabbix_proxy.conf.j2 dest=/usr/local/zabbix/etc/zabbix_proxy.conf
+  tags: conf zabbix proxy
+  notify:
+  - restart proxy
+  when: servertype == 'proxy'
+
+- name: add zabbix proxy sysv script
+  copy: src=zabbix_proxy dest=/etc/init.d/zabbix_proxy mode=755
+  when: servertype == 'proxy'
+
+
+- name: copy client conf
+  template: src=my.cnf.j2 dest=~/.my.cnf
+  tags: conf
+  notify: restart mariadb server
+  when: ansible_os_family == 'Debian' and  servertype == 'proxy'
+
+- name: create  zabbix proxy user
+  mysql_user: login_host={{ mysql_host }} login_port={{mysql_port}} login_user=root login_password={{mysql_root_pwd}} name={{ loginuser }} password={{ loginpasswd }} priv={{ priv }} state=present host={{ loginhost }}
+  tags: create user
+  when: servertype == 'proxy'
+
+- name: copy schema sql
+  copy: src=schema.sql dest=/tmp/schema.sql
+
+- name: import schema sql
+  #mysql_db: name={{ dbname }} login_host={{ login_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user={{ loginuser }} login_password={{ loginpasswd }} state=import target=/usr/share/zabbix-proxy-mysql/schema.sql
+  shell: mysql -D {{ dbname }} -e "source /tmp/schema.sql"
+  tags: create user
+  when: servertype == 'proxy'
+  
+- name: start zabbix proxy
+  service: name=zabbix-proxy state=started enabled=true
+  when: servertype == 'proxy'
+  

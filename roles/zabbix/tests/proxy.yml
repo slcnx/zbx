@@ -1,0 +1,9 @@
+- hosts: 185.79.153.60
+  remote_user: root
+  roles:
+  - role: roles/mariadb-server
+    log_bin: master-bin
+
+  - role: roles/zabbix
+    servertype: proxy
+    zabbix_server: 38.83.75.10

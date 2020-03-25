@@ -1,0 +1,27 @@
+- name: install mariadb server
+  apt: name={{ item }} state=latest
+  with_items:
+  - mariadb-server 
+  when: ansible_os_family == 'Debian' 
+
+- name: copy conf 
+  template: src=server.conf.j2 dest=/etc/mysql/conf.d/server.conf
+  tags: conf
+  notify: restart mariadb server 
+  when: ansible_os_family == 'Debian' 
+
+- name: install mariadb server
+  yum: name={{ item }} state=latest
+  with_items:
+  - mariadb-server 
+  when: ansible_os_family == 'RedHat' 
+
+- name: copy conf 
+  template: src=server.conf.j2 dest=/etc/mysql/conf.d/server.cnf
+  tags: conf
+  notify: restart mariadb server 
+  when: ansible_os_family == 'RedHat' 
+
+
+- name: start mariadb server
+  service: name=mysql state=started enabled=true

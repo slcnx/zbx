@@ -1,0 +1,63 @@
+#
+# These groups are read by MariaDB server.
+# Use it for options that only the server (but not clients) should see
+#
+# See the examples of server my.cnf files in /usr/share/mysql/
+#
+
+# this is read by the standalone daemon and embedded servers
+[server]
+skip-name-resolve = 1
+innodb-file-per-table = 1
+log-bin = {{ log_bin }}
+
+# this is only for the mysqld standalone daemon
+[mysqld]
+# SAFETY #
+max_allowed_packet             = 16M
+max_connect_errors             = 100000
+
+# BINARY LOGGING #
+expire_logs_days               = 14
+sync_binlog                    = 500
+
+# CACHE #
+tmpdir                         = /tmp
+tmp_table_size                 = 128M
+max_heap_table_size            = 32M
+query_cache_type               = 0
+query_cache_size               = 0
+max_connections                = 3500
+thread_cache_size              = 50
+open_files_limit               = 65635
+table_definition_cache         = 4096
+table_open_cache               = 200
+
+
+## LOGGING
+log_error                      = /var/log/mariadb/mariadb_error.log
+log_queries_not_using_indexes  = 0
+slow_query_log                 = 1
+slow_query_log_file            = /var/log/mariadb/mariadb_slow.log
+tmp-table-size		       = 128M
+max-heap-table-size            = 128M
+max-allowed-packet             = 5M
+
+#
+innodb_large_prefix            = 1
+
+# this is only for embedded server
+[embedded]
+
+# This group is only read by MariaDB-5.5 servers.
+# If you use the same .cnf file for MariaDB of different versions,
+# use this group for options that older servers don't understand
+[mysqld-5.5]
+
+# These two groups are only read by MariaDB servers, not by MySQL.
+# If you use the same .cnf file for MySQL and MariaDB,
+# you can put MariaDB-only options here
+[mariadb]
+
+[mariadb-5.5]
+

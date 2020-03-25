@@ -1,0 +1,22 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+import warnings
+warnings.filterwarnings("ignore")
+import os,sys
+
+def result():
+    sql = "select * from gslb_gslbnodeitem ;" 
+    
+    gslbnode_info = os.popen('mysql -uroot -pStar.123Mysql -D mocean_cdn -e "%s"' % sql ).read() 
+    
+
+    if gslbnode_info:
+
+        print gslbnode_info.replace('\t','|')
+    else:
+
+        print "the database cms no data !"
+
+if __name__ == '__main__':
+
+    result()

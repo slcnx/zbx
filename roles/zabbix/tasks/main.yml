@@ -1,0 +1,89 @@
+---
+# tasks file for roles/zabbix-agent
+
+- name: install repo
+  apt: deb=https://repo.zabbix.com/zabbix/3.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_3.0-2+{{ ansible_lsb.codename }}_all.deb
+  tags: add repo
+  when: ansible_os_family == 'Debian' 
+
+- name: add sources
+  copy: src=agent.list dest=/etc/apt/sources.list.d/
+  when: ansible_os_family == 'Debian' 
+
+- name: install zabbix agent
+  apt: name=zabbix-agent state=present  update_cache=yes
+  when: servertype == 'agent'
+
+- name: conf zabbix agent
+  template: src=zabbix_agentd.conf.j2 dest=/etc/zabbix/zabbix_agentd.conf
+  tags: conf zabbix agent
+  notify:
+  - restart agent
+  when: ansible_os_family == 'Debian' and  servertype == 'agent'
+
+- name: install zabbix script
+  copy: src=scripts/ dest=/etc/zabbix/scripts/ mode=755  owner=root group=root
+  when: servertype == 'agent'
+
+- name: start zabbix agent
+  service: name=zabbix-agent state=started enabled=true
+  when: servertype == 'agent'
+
+
+
+
+
+- name: install zabbix proxy
+  apt: name={{ item }} state=present  update_cache=yes
+  with_items:
+  - MySQL-python
+  - zabbix-proxy
+  - fping
+  when: ansible_os_family == 'RedHat' and  servertype == 'proxy'
+
+- name: install zabbix proxy
+  apt: name={{ item }} state=present  update_cache=yes
+  with_items:
+  - python-mysqldb
+  - zabbix-proxy-mysql
+  - fping
+  when: ansible_os_family == 'Debian' and  servertype == 'proxy'
+
+- name: conf zabbix proxy
+  template: src=zabbix_proxy.conf.j2 dest=/etc/zabbix/zabbix_proxy.conf
+  tags: conf zabbix proxy
+  notify:
+  - restart proxy
+  when: ansible_os_family == 'Debian' and  servertype == 'proxy'
+
+- name: create zabbix proxy database
+  mysql_db: name={{ dbname }} login_host={{ mysql_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user=root login_password={{ mysql_root_pwd }} state=present
+  tags: create user
+  when: servertype == 'proxy'
+
+
+- name: copy client conf
+  template: src=my.cnf.j2 dest=~/.my.cnf
+  tags: conf
+  notify: restart mariadb server
+  when: ansible_os_family == 'Debian' and  servertype == 'proxy'
+
+- name: create  zabbix proxy user
+  mysql_user: login_host={{ mysql_host }} login_port={{mysql_port}} login_user=root login_password={{mysql_root_pwd}} name={{ loginuser }} password={{ loginpasswd }} priv={{ priv }} state=present host={{ loginhost }}
+  tags: create user
+  when: servertype == 'proxy'
+
+- name: gunzip proxy schema.sql
+  shell: if ! [ -f /usr/share/zabbix-proxy-mysql/schema.sql ]; then gzip -d -k /usr/share/zabbix-proxy-mysql/schema.sql.gz ;fi
+  tags: create user
+  when: servertype == 'proxy'
+
+- name: import schema sql
+  #mysql_db: name={{ dbname }} login_host={{ login_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user={{ loginuser }} login_password={{ loginpasswd }} state=import target=/usr/share/zabbix-proxy-mysql/schema.sql
+  shell: mysql -D {{ dbname }} -e "source /usr/share/zabbix-proxy-mysql/schema.sql"
+  tags: create user
+  when: servertype == 'proxy'
+
+- name: start zabbix proxy
+  service: name=zabbix-proxy state=started enabled=true
+  when: servertype == 'proxy'

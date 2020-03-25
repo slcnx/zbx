@@ -1,0 +1,17 @@
+#!/bin/bash
+#description get the networkcard's bytes
+ip=`curl -fs --connect-timeout 1 http://members.3322.org/dyndns/getip`
+netcard=`ip address | grep $ip | awk '{print $7}'`
+tx=`cat /proc/net/dev |grep $netcard | awk '{print $10}'`
+rx=`cat /proc/net/dev |grep $netcard | awk '{print $2}'`
+case $1 in
+T)
+    echo $tx ;;
+R)
+    echo $rx;;
+*)
+esac
+exit 0
+
+
+

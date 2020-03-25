@@ -1,0 +1,6 @@
+- hosts: localhost
+  remote_user: root
+  roles:
+  - role: roles/zabbix
+    servertype: agent
+    zabbix_servers: 119.146.223.77,38.83.75.10

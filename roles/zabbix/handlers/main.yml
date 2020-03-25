@@ -1,0 +1,7 @@
+---
+# handlers file for roles/zabbix-agent
+- name: restart agent
+  service: name=zabbix-agent state=restarted enabled=true
+- name: restart proxy
+  service: name=zabbix-proxy state=restarted enabled=true
+
