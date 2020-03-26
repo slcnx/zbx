@@ -1,4 +1,4 @@
-- hosts: 185.79.153.60
+- hosts: localhost
   remote_user: root
   roles:
   - role: roles/mariadb-server

@@ -25,6 +25,10 @@
   copy: src=scripts/ dest=/etc/zabbix/scripts/ mode=755  owner=root group=root
   when: servertype == 'agent'
 
+- name: modify pid
+  shell: sed -i 's@\(PIDFile=\).*@\1/tmp/zabbix_agentd.pid@' /lib/systemd/system/zabbix-agent.service
+  when: servertype == 'agent'
+
 - name: start zabbix agent
   service: name=zabbix-agent state=started enabled=true
   when: servertype == 'agent'
@@ -73,15 +77,18 @@
   tags: create user
   when: servertype == 'proxy'
 
-- name: gunzip proxy schema.sql
-  shell: if ! [ -f /usr/share/zabbix-proxy-mysql/schema.sql ]; then gzip -d -k /usr/share/zabbix-proxy-mysql/schema.sql.gz ;fi
+- name: copy schema.sql
+  copy: src=schema.sql dest=/tmp/
   tags: create user
   when: servertype == 'proxy'
 
 - name: import schema sql
-  #mysql_db: name={{ dbname }} login_host={{ login_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user={{ loginuser }} login_password={{ loginpasswd }} state=import target=/usr/share/zabbix-proxy-mysql/schema.sql
-  shell: mysql -D {{ dbname }} -e "source /usr/share/zabbix-proxy-mysql/schema.sql"
+  mysql_db: name={{ dbname }} login_host={{ login_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user={{ loginuser }} login_password={{ loginpasswd }} state=import target=/tmp/schema.sql
   tags: create user
+  when: servertype == 'proxy'
+
+- name: modify pid
+  shell: sed -i 's@\(PIDFile=\).*@\1/tmp/zabbix_proxy.pid@' /lib/systemd/system/zabbix-proxy.service
   when: servertype == 'proxy'
 
 - name: start zabbix proxy

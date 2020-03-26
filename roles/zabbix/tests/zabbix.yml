@@ -1,11 +1,11 @@
-- hosts: 185.79.153.60
+- hosts: localhost
   remote_user: root
   roles:
   - role: roles/zabbix
     servertype: agent
     zabbix_servers: 119.146.223.77,38.83.75.10
 
-- hosts: 185.79.153.60
+- hosts: localhost
   remote_user: root
   roles:
   - role: roles/mariadb-server
