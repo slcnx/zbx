@@ -29,6 +29,10 @@
   shell: sed -i 's@\(PIDFile=\).*@\1/tmp/zabbix_agentd.pid@' /lib/systemd/system/zabbix-agent.service
   when: servertype == 'agent'
 
+- name: daemon-reload
+  shell: systemctl daemon-reload
+  when: servertype == 'agent'
+
 - name: start zabbix agent
   service: name=zabbix-agent state=started enabled=true
   when: servertype == 'agent'
@@ -83,8 +87,10 @@
   when: servertype == 'proxy'
 
 - name: import schema sql
-  mysql_db: name={{ dbname }} login_host={{ login_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user={{ loginuser }} login_password={{ loginpasswd }} state=import target=/tmp/schema.sql
+  #mysql_db: name={{ dbname }} login_host={{ login_host }} encoding={{ encoding }} login_port={{ mysql_port }} login_user={{ loginuser }} login_password={{ loginpasswd }} state=import target=/tmp/schema.sql
+  shell: /bin/bash -c "zcat /usr/share/doc/zabbix-proxy-mysql/schema.sql.gz | mysql -uroot -hlocalhost zabbix_proxy"
   tags: create user
+  ignore_errors: yes
   when: servertype == 'proxy'
 
 - name: modify pid

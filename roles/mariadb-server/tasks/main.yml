@@ -1,11 +1,18 @@
+- name: install repo
+  shell:  apt-get install software-properties-common && apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc' 
+  when: ansible_os_family == 'Debian' 
+- name: copy mirror
+  copy: src=mariadb.list dest=/etc/apt/sources.list.d/
+  when: ansible_os_family == 'Debian' 
+
 - name: install mariadb server
-  apt: name={{ item }} state=latest
+  apt: name={{ item }} state=latest update_cache=yes
   with_items:
   - mariadb-server 
   when: ansible_os_family == 'Debian' 
 
 - name: copy conf 
-  template: src=server.conf.j2 dest=/etc/mysql/conf.d/server.conf
+  template: src=server.conf.j2 dest=/etc/mysql/mariadb.conf.d/50-server.cnf
   tags: conf
   notify: restart mariadb server 
   when: ansible_os_family == 'Debian' 
